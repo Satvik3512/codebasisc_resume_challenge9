@@ -1,0 +1,65 @@
+#request 1 --> 
+#products with base price>500 that are featured in BOGOF promo type
+
+select distinct(product_code),product_name, category, base_price
+from fact_events
+join dim_products using(product_code) 
+where base_price > 500 and promo_type="BOGOF" 
+order by base_price desc;
+
+
+
+#request 2 -->
+#Number of stores in each city ordered by the store count in each city
+#in descending order
+
+select distinct(city), count(store_id) as count_of_stores
+from dim_stores 
+group by city 
+order by count_of_stores desc;
+
+
+
+#request 3 -->
+#list down the campaigns alongwith the revenue before and after the campaign
+
+select campaign_name as campaigne, 
+round(sum(revenue_before)/1000000,2) as 'revenue(in mln) before promo', 
+round(sum(revenue_after)/1000000,2) as 'revenue(in mln) after promo'
+from fact_events_refurbished 
+join dim_campaigns using (campaign_id)
+group by campaign_id;
+
+
+
+#request 4 -->
+#List down the product categories and their ISU% during the diwali campaign.
+#Also allocate ranks to the categories on the basis of ISU%.
+
+with cte as(
+  select category,
+  round((sum(quantity_sold_after_promo)-sum(quantity_sold_before_promo))/
+  sum(quantity_sold_before_promo)*100,1) as ISU_pct
+  from fact_events_refurbished 
+  join dim_products using (product_code)
+  where campaign_id="CAMP_DIW_01"
+  group by category)
+select *,
+rank() over(order by ISU_pct desc) as 'rank' 
+from cte;
+
+
+
+#request 5 -->
+#top 5 products on the basis of IR% in both the campaigns
+
+with cte as(
+  select product_name,category,
+  round((sum(revenue_after)-sum(revenue_before))/
+  sum(revenue_before)*100,1) as IR_pct
+  from fact_events_refurbished 
+  join dim_products using (product_code)
+  group by product_code)
+select *,
+rank() over(order by IR_pct desc) as 'rank' 
+from cte limit 5;
